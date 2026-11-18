@@ -1,5 +1,6 @@
 package camera;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
 
@@ -20,8 +21,10 @@ public class Camera {
         this.streamUrl = new SimpleStringProperty(streamUrl == null ? "" : streamUrl);
     }
 
+    @JsonProperty("cameraId")
     public int getId() { return id.get(); }
     public SimpleIntegerProperty idProperty() { return id; }
+    @JsonProperty("cameraId")
     public void setId(int id) { this.id.set(id); }
     public String getStatus() { return status.get(); }
     public SimpleStringProperty statusProperty() { return status; }

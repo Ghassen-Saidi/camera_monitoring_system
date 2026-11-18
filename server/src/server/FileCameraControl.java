@@ -17,7 +17,7 @@ public class FileCameraControl implements CameraControl {
         try {
             Files.createDirectories(this.directory);
             for (int i = 0; i < count; i++) {
-                Files.writeString(file(i), "STOPPED", StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+                Files.writeString(file(i), "STOPPED", StandardOpenOption.CREATE, StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING);
             }
         } catch (IOException e) {
             throw new RuntimeException("Cannot initialize camera state", e);

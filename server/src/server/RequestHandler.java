@@ -2,6 +2,7 @@ package server;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -34,7 +35,13 @@ public class RequestHandler implements Runnable {
         try (Socket ignored = socket;
              InputStream input = socket.getInputStream();
              OutputStream output = socket.getOutputStream()) {
-            Request request = readRequest(input);
+            Request request;
+            try {
+                request = readRequest(input);
+            } catch (IllegalArgumentException e) {
+                writeError(output, 400, e.getMessage());
+                return;
+            }
             if (request == null) return;
             if (!authorized(request.headers())) {
                 writeError(output, 401, "Unauthorized");
@@ -70,12 +77,13 @@ public class RequestHandler implements Runnable {
         throw new NoSuchElementException("Endpoint not found");
     }
 
-    @SuppressWarnings("unchecked")
     private String readAction(String body) throws JsonProcessingException {
-        Map<String, String> payload = objectMapper.readValue(body, Map.class);
-        String action = payload.get("action");
-        if (action == null || action.isBlank()) throw new IllegalArgumentException("Missing 'action' field");
-        return action;
+        JsonNode payload = objectMapper.readTree(body);
+        JsonNode action = payload == null ? null : payload.get("action");
+        if (action == null || !action.isTextual() || action.asText().isBlank()) {
+            throw new IllegalArgumentException("'action' must be a non-empty string");
+        }
+        return action.asText();
     }
 
     private Request readRequest(InputStream input) throws IOException {
@@ -129,7 +137,8 @@ public class RequestHandler implements Runnable {
             }
             previous = current;
         }
-        return buffer.size() == 0 ? null : buffer.toByteArray();
+        if (buffer.size() == 0) return null;
+        throw new IllegalArgumentException("Incomplete request headers");
     }
 
     private void writeResponse(OutputStream output, int status, String body) throws IOException {
