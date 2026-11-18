@@ -1,5 +1,6 @@
 package camera;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
@@ -8,7 +9,9 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 
 public class CameraService {
@@ -30,7 +33,24 @@ public class CameraService {
     }
 
     public void sendAllCamerasAction(String action) throws IOException {
-        request(BASE_URL + "/cameras/all/record", "POST", actionBody(action));
+        String response = request(BASE_URL + "/cameras/all/record", "POST", actionBody(action));
+        JsonNode payload = objectMapper.readTree(response);
+        if (payload == null || !payload.path("success").asBoolean(false)) {
+            String message = payload == null
+                    ? "The server returned an empty bulk-command response"
+                    : payload.path("message").asText("One or more cameras could not be updated");
+            List<String> failedIds = new ArrayList<>();
+            JsonNode results = payload == null ? null : payload.path("results");
+            if (results != null && results.isArray()) {
+                for (JsonNode result : results) {
+                    if (!result.path("success").asBoolean(false)) {
+                        failedIds.add(result.path("cameraId").asText("?"));
+                    }
+                }
+            }
+            if (!failedIds.isEmpty()) message += ". Failed camera IDs: " + String.join(", ", failedIds);
+            throw new IOException(message);
+        }
     }
 
     private String actionBody(String action) throws IOException {

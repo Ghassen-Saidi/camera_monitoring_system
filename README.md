@@ -63,16 +63,16 @@ Open the `mobile/` folder in Android Studio. The default emulator API URL for de
 http://10.0.2.2:8081/api
 ```
 
-For a physical device, configure the server's LAN address without editing source:
+For a physical device, configure the server's LAN address without editing source (run these Gradle tasks from the `mobile/` directory):
 
 ```bash
-./gradlew assembleDebug -PcameraApiUrl=http://192.168.1.10:8081/api
+gradle :app:assembleDebug -PcameraApiUrl=http://192.168.1.10:8081/api
 ```
 
 Release builds intentionally have no HTTP fallback. Supply a verified HTTPS endpoint:
 
 ```bash
-./gradlew assembleRelease -PcameraReleaseApiUrl=https://camera.example.com/api
+gradle :app:assembleRelease -PcameraReleaseApiUrl=https://camera.example.com/api
 ```
 
 The Android build rejects release task graphs unless `cameraReleaseApiUrl` is an HTTPS URL. Debug builds continue to use the local emulator URL or the optional `cameraApiUrl` property. The mobile client displays partial bulk-operation failures and opens streams through an installed compatible player; it does not embed a native video player yet.

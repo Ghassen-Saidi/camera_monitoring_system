@@ -22,6 +22,7 @@ import java.util.regex.Pattern;
 public class RequestHandler implements Runnable {
     private static final int MAX_HEADER_BYTES = 32 * 1024;
     private static final int MAX_BODY_BYTES = 1 * 1024 * 1024;
+    private static final Pattern HEADER_NAME = Pattern.compile("[A-Za-z0-9!#$%&'*+.^_|~-]+");
 
     private final Socket socket;
     private final CameraController cameraController;
@@ -109,7 +110,9 @@ public class RequestHandler implements Runnable {
         byte[] headerBytes = readUntilHeaderEnd(input);
         if (headerBytes == null) return null;
 
-        String[] lines = new String(headerBytes, StandardCharsets.ISO_8859_1).split("\\r?\\n");
+        String headerText = new String(headerBytes, StandardCharsets.ISO_8859_1);
+        validateCrlf(headerText);
+        String[] lines = headerText.split("\\r\\n");
         if (lines.length == 0 || lines[0].isBlank()) {
             throw new IllegalArgumentException("Missing request line");
         }
@@ -118,22 +121,22 @@ public class RequestHandler implements Runnable {
         if (requestLine.length != 3) {
             throw new IllegalArgumentException("Malformed request line");
         }
-
-        String method = requestLine[0].toUpperCase(Locale.ROOT);
-        if (!method.matches("[A-Z]+")) {
+        if (!HEADER_NAME.matcher(requestLine[0]).matches()) {
             throw new IllegalArgumentException("Invalid HTTP method");
         }
         if (!"HTTP/1.0".equals(requestLine[2]) && !"HTTP/1.1".equals(requestLine[2])) {
             throw new IllegalArgumentException("Unsupported HTTP version");
         }
-        if (!requestLine[1].startsWith("/")) {
+        if (!requestLine[1].startsWith("/") || requestLine[1].contains(" ")) {
             throw new IllegalArgumentException("Invalid request target");
         }
 
+        String method = requestLine[0].toUpperCase(Locale.ROOT);
         Map<String, String> headers = new HashMap<>();
         for (int i = 1; i < lines.length; i++) {
             String line = lines[i];
             if (line.isEmpty()) continue;
+
             int separator = line.indexOf(':');
             if (separator <= 0) {
                 throw new IllegalArgumentException("Malformed HTTP header");
@@ -141,7 +144,7 @@ public class RequestHandler implements Runnable {
 
             String name = line.substring(0, separator).trim();
             String value = line.substring(separator + 1).trim();
-            if (name.isEmpty() || name.chars().anyMatch(Character::isWhitespace)) {
+            if (!HEADER_NAME.matcher(name).matches()) {
                 throw new IllegalArgumentException("Malformed HTTP header name");
             }
 
@@ -168,6 +171,19 @@ public class RequestHandler implements Runnable {
                 new String(bodyBytes, StandardCharsets.UTF_8), headers);
     }
 
+    private void validateCrlf(String headers) {
+        for (int i = 0; i < headers.length(); i++) {
+            char current = headers.charAt(i);
+            if (current == '\r') {
+                if (i + 1 >= headers.length() || headers.charAt(i + 1) != '\n') {
+                    throw new IllegalArgumentException("Malformed HTTP line ending");
+                }
+            } else if (current == '\n' && (i == 0 || headers.charAt(i - 1) != '\r')) {
+                throw new IllegalArgumentException("Malformed HTTP line ending");
+            }
+        }
+    }
+
     private boolean authorized(Map<String, String> headers) {
         if (configuredApiKey.isBlank()) return true;
         String supplied = headers.getOrDefault("x-api-key", "");
@@ -178,7 +194,9 @@ public class RequestHandler implements Runnable {
 
     private int parseContentLength(String value) {
         if (value == null) return 0;
-        if (value.isBlank()) throw new IllegalArgumentException("Invalid Content-Length");
+        if (!value.matches("[0-9]+")) {
+            throw new IllegalArgumentException("Invalid Content-Length");
+        }
 
         final int length;
         try {
@@ -187,8 +205,9 @@ public class RequestHandler implements Runnable {
             throw new IllegalArgumentException("Invalid Content-Length");
         }
 
-        if (length < 0) throw new IllegalArgumentException("Content-Length must not be negative");
-        if (length > MAX_BODY_BYTES) throw new IllegalArgumentException("Request body is too large");
+        if (length > MAX_BODY_BYTES) {
+            throw new IllegalArgumentException("Request body is too large");
+        }
         return length;
     }
 
@@ -203,12 +222,12 @@ public class RequestHandler implements Runnable {
                 throw new IllegalArgumentException("Request headers are too large");
             }
 
-            if (previous == '\\r' && current == '\\n') {
+            if (previous == '\r' && current == '\n') {
                 byte[] bytes = buffer.toByteArray();
                 int size = bytes.length;
                 if (size >= 4
-                        && bytes[size - 4] == '\\r'
-                        && bytes[size - 3] == '\\n') {
+                        && bytes[size - 4] == '\r'
+                        && bytes[size - 3] == '\n') {
                     return java.util.Arrays.copyOf(bytes, size - 2);
                 }
             }

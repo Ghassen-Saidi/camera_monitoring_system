@@ -209,7 +209,7 @@ class MainActivity : AppCompatActivity() {
         return List(array.length()) { index ->
             val item = array.getJSONObject(index)
             Camera(
-                item.optInt("cameraId", item.optInt("camerald")),
+                item.optInt("cameraId", item.optInt("id", index)),
                 item.optString("status"),
                 item.optString("type", "HTTP"),
                 item.optString("streamUrl")
