@@ -13,6 +13,7 @@ import java.util.Map;
 
 public class CameraService {
     private static final String BASE_URL = System.getProperty("camera.api", "http://localhost:8081/api");
+    private static final String API_KEY = System.getProperty("camera.apiKey", "");
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public java.util.List<Camera> getAllCameras() throws IOException {
@@ -39,6 +40,7 @@ public class CameraService {
     private String request(String urlString, String method, String body) throws IOException {
         HttpURLConnection connection = createConnection(urlString, method);
         try {
+            if (!API_KEY.isBlank()) connection.setRequestProperty("X-API-Key", API_KEY);
             if (body != null) {
                 connection.setDoOutput(true);
                 connection.setRequestProperty("Content-Type", "application/json; charset=utf-8");

@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.security.MessageDigest;
 
 public class RequestHandler implements Runnable {
     private static final int MAX_HEADER_BYTES = 32 * 1024;
@@ -21,6 +22,7 @@ public class RequestHandler implements Runnable {
     private final Socket socket;
     private final CameraController cameraController;
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final String configuredApiKey = System.getenv().getOrDefault("CAMERA_API_KEY", "");
 
     public RequestHandler(Socket socket, CameraController cameraController) {
         this.socket = socket;
@@ -34,6 +36,10 @@ public class RequestHandler implements Runnable {
              OutputStream output = socket.getOutputStream()) {
             Request request = readRequest(input);
             if (request == null) return;
+            if (!authorized(request.headers())) {
+                writeError(output, 401, "Unauthorized");
+                return;
+            }
             try {
                 writeResponse(output, 200, dispatch(request.method(), request.path(), request.body()));
             } catch (NoSuchElementException e) {
@@ -89,7 +95,13 @@ public class RequestHandler implements Runnable {
         int length = parseContentLength(headers.get("content-length"));
         byte[] bodyBytes = input.readNBytes(length);
         if (bodyBytes.length != length) throw new IllegalArgumentException("Incomplete request body");
-        return new Request(requestLine[0].toUpperCase(), requestLine[1], new String(bodyBytes, StandardCharsets.UTF_8));
+        return new Request(requestLine[0].toUpperCase(), requestLine[1], new String(bodyBytes, StandardCharsets.UTF_8), headers);
+    }
+
+    private boolean authorized(Map<String, String> headers) {
+        if (configuredApiKey.isBlank()) return true;
+        String supplied = headers.getOrDefault("x-api-key", "");
+        return MessageDigest.isEqual(configuredApiKey.getBytes(StandardCharsets.UTF_8), supplied.getBytes(StandardCharsets.UTF_8));
     }
 
     private int parseContentLength(String value) {
@@ -133,8 +145,8 @@ public class RequestHandler implements Runnable {
     }
 
     private String statusText(int code) {
-        return switch (code) { case 200 -> "200 OK"; case 400 -> "400 Bad Request"; case 404 -> "404 Not Found"; default -> "500 Internal Server Error"; };
+        return switch (code) { case 200 -> "200 OK"; case 400 -> "400 Bad Request"; case 401 -> "401 Unauthorized"; case 404 -> "404 Not Found"; default -> "500 Internal Server Error"; };
     }
 
-    private record Request(String method, String path, String body) { }
+    private record Request(String method, String path, String body, Map<String, String> headers) { }
 }

@@ -14,7 +14,10 @@ android {
         versionCode = 1
         versionName = "1.0"
 
-        buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:8081/api\"")
+        val configuredApiUrl = providers.gradleProperty("cameraApiUrl").orElse("http://10.0.2.2:8081/api").get()
+        val configuredApiKey = providers.gradleProperty("cameraApiKey").orElse("").get()
+        buildConfigField("String", "API_BASE_URL", "\"$configuredApiUrl\"")
+        buildConfigField("String", "API_KEY", "\"$configuredApiKey\"")
     }
 
     buildTypes {

@@ -1,6 +1,7 @@
 package com.example.cameramonitoring
 
 import android.content.Intent
+import android.content.ActivityNotFoundException
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
@@ -13,7 +14,6 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import org.json.JSONArray
-import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
@@ -73,8 +73,7 @@ class MainActivity : AppCompatActivity() {
         statusText.text = "Loading cameras..."
         executor.execute {
             try {
-                val connection = openConnection("/cameras", "GET")
-                val cameras = parseCameras(readBody(connection))
+                val cameras = parseCameras(request("/cameras", "GET"))
                 runOnUiThread {
                     renderCameras(cameras)
                     statusText.text = "${cameras.size} camera(s) loaded"
@@ -128,7 +127,18 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun openStream(camera: Camera) {
-        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(camera.streamUrl)))
+        try {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(camera.streamUrl))
+            if (intent.resolveActivity(packageManager) == null) {
+                showError("No installed app can open this ${camera.type} stream")
+                return
+            }
+            startActivity(intent)
+        } catch (_: ActivityNotFoundException) {
+            showError("No installed app can open this stream")
+        } catch (_: IllegalArgumentException) {
+            showError("Invalid stream URL")
+        }
     }
 
     private fun openConnection(path: String, method: String): HttpURLConnection {
@@ -136,23 +146,30 @@ class MainActivity : AppCompatActivity() {
             requestMethod = method
             connectTimeout = 5000
             readTimeout = 5000
+            if (BuildConfig.API_KEY.isNotBlank()) setRequestProperty("X-API-Key", BuildConfig.API_KEY)
         }
     }
 
-    private fun readBody(connection: HttpURLConnection): String {
-        connection.inputStream.use { stream ->
-            return BufferedReader(InputStreamReader(stream)).readText()
+    private fun request(path: String, method: String, body: String? = null): String {
+        val connection = openConnection(path, method)
+        try {
+            if (body != null) {
+                connection.doOutput = true
+                connection.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
+            }
+            val responseCode = connection.responseCode
+            val stream = if (responseCode in 200..299) connection.inputStream else connection.errorStream
+            val response = stream?.use { BufferedReader(InputStreamReader(it)).readText() }.orEmpty()
+            if (responseCode !in 200..299) error("HTTP $responseCode: $response")
+            return response
+        } finally {
+            connection.disconnect()
         }
     }
 
     private fun post(path: String, body: String) {
-        openConnection(path, "POST").apply {
-            doOutput = true
-            setRequestProperty("Content-Type", "application/json")
-            outputStream.use { it.write(body.toByteArray()) }
-            if (responseCode !in 200..299) error("HTTP $responseCode")
-            disconnect()
-        }
+        request(path, "POST", body)
     }
 
     private fun parseCameras(json: String): List<Camera> {

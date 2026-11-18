@@ -17,4 +17,10 @@ Open the `mobile` folder in Android Studio and run the `app` configuration. The 
 http://10.0.2.2:8081/api
 ```
 
-For a physical phone, change `API_BASE_URL` in `app/build.gradle.kts` to the computer's LAN address, for example `http://192.168.1.10:8081/api`, and make sure the server firewall allows port 8081.
+For a physical phone, pass the computer's LAN address without editing source:
+
+```text
+./gradlew assembleDebug -PcameraApiUrl=http://192.168.1.10:8081/api -PcameraApiKey=change-me
+```
+
+Debug builds allow local HTTP for development. Release builds require HTTPS. If the server is started with `CAMERA_API_KEY`, pass the same value as `cameraApiKey`. The app checks whether an installed application can handle each stream URL before launching it and reports HTTP error responses instead of crashing.
