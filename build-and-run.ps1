@@ -26,6 +26,6 @@ Write-Host "Build successful!" -ForegroundColor Green
 Write-Host "`nStarting application..." -ForegroundColor Yellow
 
 java --module-path "$JAVAFX_PATH" `
-     --add-modules javafx.controls,javafx.fxml `
+     --add-modules javafx.controls,javafx.fxml,javafx.media `
      -cp "$OUT_DIR" `
      camera.CameraClientFX
