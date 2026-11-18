@@ -10,8 +10,13 @@ public class CameraService {
     private final CameraControl control;
 
     public CameraService() {
-        this.count = configuredCount();
-        this.control = new FileCameraControl(CAMS_DIR, count);
+        this(configuredCount(), null);
+    }
+
+    public CameraService(int count, CameraControl control) {
+        if (count < 1) throw new IllegalArgumentException("Camera count must be positive");
+        this.count = count;
+        this.control = control == null ? new FileCameraControl(CAMS_DIR, count) : control;
     }
 
     public List<Camera> getAllCameras() {
