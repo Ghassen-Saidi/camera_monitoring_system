@@ -5,8 +5,12 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
@@ -19,6 +23,7 @@ public class HttpServer {
     private final CameraController cameraController;
     private final CountDownLatch startupCompleted = new CountDownLatch(1);
     private final Object lifecycleLock = new Object();
+    private final Set<Socket> activeClients = ConcurrentHashMap.newKeySet();
 
     private volatile boolean running;
     private volatile boolean startedSuccessfully;
@@ -68,11 +73,32 @@ public class HttpServer {
                 try {
                     clientSocket = openedSocket.accept();
                     clientSocket.setSoTimeout(10_000);
-                    threadPool.execute(new RequestHandler(clientSocket, cameraController));
-                    clientSocket = null; // Ownership transferred to RequestHandler.
-                } catch (RejectedExecutionException e) {
-                    closeQuietly(clientSocket);
-                    System.err.println("Request queue full; connection closed");
+
+                    synchronized (lifecycleLock) {
+                        if (!running) {
+                            closeQuietly(clientSocket);
+                            clientSocket = null;
+                            continue;
+                        }
+                        activeClients.add(clientSocket);
+                    }
+
+                    Socket acceptedSocket = clientSocket;
+                    try {
+                        threadPool.execute(() -> {
+                            try {
+                                new RequestHandler(acceptedSocket, cameraController).run();
+                            } finally {
+                                activeClients.remove(acceptedSocket);
+                            }
+                        });
+                        clientSocket = null; // Ownership transferred to the worker.
+                    } catch (RejectedExecutionException e) {
+                        activeClients.remove(acceptedSocket);
+                        closeQuietly(acceptedSocket);
+                        clientSocket = null;
+                        System.err.println("Request queue full; connection closed");
+                    }
                 } catch (SocketException e) {
                     closeQuietly(clientSocket);
                     if (running) System.err.println("Accept error: " + e.getMessage());
@@ -89,10 +115,14 @@ public class HttpServer {
                 System.err.println("Server error: " + e.getMessage());
             }
         } finally {
+            List<Socket> remainingClients;
             synchronized (lifecycleLock) {
                 running = false;
                 serverSocket = null;
+                remainingClients = new ArrayList<>(activeClients);
             }
+            remainingClients.forEach(this::closeQuietly);
+
             startupCompleted.countDown();
             threadPool.shutdown();
             try {
@@ -123,14 +153,17 @@ public class HttpServer {
     }
 
     public void stop() {
-        ServerSocket socket;
+        ServerSocket listeningSocket;
+        List<Socket> clients;
         synchronized (lifecycleLock) {
             stopRequested = true;
             running = false;
-            socket = serverSocket;
+            listeningSocket = serverSocket;
+            clients = new ArrayList<>(activeClients);
         }
 
-        closeQuietly(socket);
+        closeQuietly(listeningSocket);
+        clients.forEach(this::closeQuietly);
         threadPool.shutdownNow();
     }
 

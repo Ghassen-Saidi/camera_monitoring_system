@@ -5,11 +5,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
-import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.HttpURLConnection;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -17,7 +16,6 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -74,20 +72,22 @@ class ServerIntegrationTest {
     @Test
     void rejectsDuplicateContentLengthHeaders() throws Exception {
         startServer(new CameraService(1, new FakeCameraControl()));
+        String rawRequest = "POST /api/cameras/0/record HTTP/1.1\r\n"
+                + "Host: localhost\r\n"
+                + "Content-Length: 2\r\n"
+                + "Content-Length: 2\r\n"
+                + "\r\n{}";
+        assertRawRequestIsBadRequest(rawRequest);
+    }
 
-        try (Socket socket = new Socket("127.0.0.1", server.getBoundPort())) {
-            socket.setSoTimeout(2_000);
-            OutputStream output = socket.getOutputStream();
-            output.write(("POST /api/cameras/0/record HTTP/1.1\r\n"
-                    + "Host: localhost\r\n"
-                    + "Content-Length: 2\r\n"
-                    + "Content-Length: 2\r\n"
-                    + "\r\n{}").getBytes(StandardCharsets.US_ASCII));
-            output.flush();
-
-            String response = new String(socket.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-            assertTrue(response.startsWith("HTTP/1.1 400 Bad Request"), response);
-        }
+    @Test
+    void rejectsCombinedTransferEncodingHeaders() throws Exception {
+        startServer(new CameraService(1, new FakeCameraControl()));
+        String rawRequest = "POST /api/cameras/0/record HTTP/1.1\r\n"
+                + "Host: localhost\r\n"
+                + "Transfer-Encoding: gzip, chunked\r\n"
+                + "\r\n0\r\n\r\n";
+        assertRawRequestIsBadRequest(rawRequest);
     }
 
     @Test
@@ -105,6 +105,28 @@ class ServerIntegrationTest {
     }
 
     @Test
+    void stopClosesAnAcceptedIdleClientSocket() throws Exception {
+        startServer(new CameraService(1, new FakeCameraControl()));
+
+        try (Socket socket = new Socket("127.0.0.1", server.getBoundPort())) {
+            socket.setSoTimeout(2_000);
+            socket.getOutputStream().write(
+                    "GET /api/cameras HTTP/1.1\r\nHost: localhost\r\n"
+                            .getBytes(StandardCharsets.US_ASCII));
+            socket.getOutputStream().flush();
+
+            Thread.sleep(100); // Give the accept loop time to hand the connection to a worker.
+            server.stop();
+
+            try {
+                assertEquals(-1, socket.getInputStream().read());
+            } catch (SocketException expectedWhenPeerCloses) {
+                // A close/reset is also an acceptable prompt shutdown result.
+            }
+        }
+    }
+
+    @Test
     void rejectsInvalidActionWithoutChangingCamera() throws Exception {
         FakeCameraControl control = new FakeCameraControl();
         startServer(new CameraService(1, control));
@@ -114,6 +136,18 @@ class ServerIntegrationTest {
 
         assertEquals(400, response.statusCode());
         assertEquals("STOPPED", control.status(0));
+    }
+
+    private void assertRawRequestIsBadRequest(String rawRequest) throws Exception {
+        try (Socket socket = new Socket("127.0.0.1", server.getBoundPort())) {
+            socket.setSoTimeout(2_000);
+            OutputStream output = socket.getOutputStream();
+            output.write(rawRequest.getBytes(StandardCharsets.US_ASCII));
+            output.flush();
+
+            String response = new String(socket.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            assertTrue(response.startsWith("HTTP/1.1 400 Bad Request"), response);
+        }
     }
 
     private void startServer(CameraService service) throws Exception {
