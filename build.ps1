@@ -1,7 +1,7 @@
 # Build script for Camera Surveillance Client
 Write-Host "Building Camera Surveillance Client..." -ForegroundColor Green
 
-$JAVAFX_PATH = "C:\javafx-sdk-25.0.1\lib"
+$JAVAFX_PATH = if ($env:JAVAFX_PATH) { $env:JAVAFX_PATH } else { "C:\javafx-sdk-25.0.1\lib" }
 $SRC_DIR = "src"
 $OUT_DIR = "out"
 
@@ -13,6 +13,7 @@ $javaFiles = Get-ChildItem -Path "$SRC_DIR/camera" -Filter "*.java" | ForEach-Ob
 Write-Host "Compiling Java files..." -ForegroundColor Cyan
 javac --module-path "$JAVAFX_PATH" `
       --add-modules javafx.controls,javafx.fxml,javafx.media `
+      -cp "lib/*" `
       -d $OUT_DIR `
       $javaFiles
 

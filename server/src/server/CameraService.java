@@ -1,78 +1,46 @@
 package server;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
 
+/** Application service; camera hardware is supplied through the CameraControl adapter. */
 public class CameraService {
-    // Adjust this path for your system. On Windows, use e.g., "C:\\cams" or "./cams"
     public static final String CAMS_DIR = "./cams";
+    private final int count;
+    private final CameraControl control;
 
     public CameraService() {
-        // Ensure directory and files exist with default STOPPED state
-        try {
-            Files.createDirectories(Paths.get(CAMS_DIR));
-            for (int i = 0; i < cameraCount(); i++) {
-                Path file = Paths.get(CAMS_DIR, "cam" + i);
-                if (!Files.exists(file)) {
-                    Files.writeString(file, "STOPPED");
-                }
-            }
-        } catch (IOException e) {
-            throw new RuntimeException("Cannot initialize camera files", e);
-        }
+        this.count = configuredCount();
+        this.control = new FileCameraControl(CAMS_DIR, count);
     }
 
     public List<Camera> getAllCameras() {
-        List<Camera> list = new ArrayList<>();
-        for (int i = 0; i < cameraCount(); i++) {
-            list.add(getCamera(i));
-        }
-        return list;
+        List<Camera> cameras = new ArrayList<>();
+        for (int i = 0; i < count; i++) cameras.add(getCamera(i));
+        return cameras;
     }
 
     public Camera getCamera(int id) {
-        if (id < 0 || id >= cameraCount()) return null;
-        try {
-            Path file = Paths.get(CAMS_DIR, "cam" + id);
-            String content = Files.readString(file).trim();
-            return new Camera(id, content, cameraType(id), streamUrl(id));
-        } catch (IOException e) {
-            return new Camera(id, "UNKNOWN", cameraType(id), streamUrl(id));
-        }
+        if (id < 0 || id >= count) return null;
+        return new Camera(id, control.status(id), cameraType(id), streamUrl(id));
     }
 
     public void setStatus(int id, String action) {
-        if (id < 0 || id >= cameraCount()) throw new IllegalArgumentException("Invalid camera ID");
-        String status = action.equalsIgnoreCase("START") ? "RECORDING" : "STOPPED";
-        try {
-            Path file = Paths.get(CAMS_DIR, "cam" + id);
-            Files.writeString(file, status, StandardOpenOption.TRUNCATE_EXISTING);
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to write camera file", e);
+        if (!"START".equalsIgnoreCase(action) && !"STOP".equalsIgnoreCase(action)) {
+            throw new IllegalArgumentException("Unsupported action: " + action);
         }
+        if ("START".equalsIgnoreCase(action)) control.start(id); else control.stop(id);
     }
 
     public void setAllStatus(String action) {
-        for (int i = 0; i < cameraCount(); i++) {
-            setStatus(i, action);
-        }
+        for (int i = 0; i < count; i++) setStatus(i, action);
     }
 
-    private int cameraCount() {
+    private int configuredCount() {
         try { return Math.max(1, Integer.parseInt(System.getenv().getOrDefault("CAMERA_COUNT", "3"))); }
         catch (NumberFormatException ignored) { return 3; }
     }
 
-    private String cameraType(int id) {
-        return System.getenv().getOrDefault("CAMERA_" + id + "_TYPE", "HTTP").toUpperCase();
-    }
-
-    private String streamUrl(int id) {
-        return System.getenv().getOrDefault("CAMERA_" + id + "_URL", "");
-    }
+    private String cameraType(int id) { return System.getenv().getOrDefault("CAMERA_" + id + "_TYPE", "HTTP").toUpperCase(); }
+    private String streamUrl(int id) { return System.getenv().getOrDefault("CAMERA_" + id + "_URL", ""); }
 }

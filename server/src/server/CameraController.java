@@ -10,8 +10,8 @@ public class CameraController {
     private final CameraService cameraService;
     private final ObjectMapper objectMapper;
 
-    public CameraController() {
-        this.cameraService = new CameraService();
+    public CameraController(CameraService cameraService) {
+        this.cameraService = cameraService;
         this.objectMapper = new ObjectMapper();
     }
 
@@ -23,7 +23,7 @@ public class CameraController {
     public String getCamera(int id) throws JsonProcessingException {
         Camera cam = cameraService.getCamera(id);
         if (cam == null) {
-            throw new IllegalArgumentException("Camera not found");
+            throw new java.util.NoSuchElementException("Camera not found");
         }
         return objectMapper.writeValueAsString(cam);
     }

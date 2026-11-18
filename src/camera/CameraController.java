@@ -74,12 +74,14 @@ public class CameraController {
             showAlert("No Stream URL", "Configure CAMERA_" + selected.getId() + "_URL first.");
             return;
         }
-        if (selected.getType().equalsIgnoreCase("RTSP") || selected.getType().equalsIgnoreCase("WEBCAM")) {
-            showAlert("Stream Bridge Required", selected.getType() + " sources should be converted to HLS, HTTP, or another JavaFX-compatible stream first.\n\nSource: " + url);
-            return;
-        }
         try {
-            MediaPlayer player = new MediaPlayer(new Media(url));
+            Media media = new Media(url);
+            media.errorProperty().addListener((obs, oldError, newError) -> {
+                if (newError != null) showAlert("Stream Error", newError.getMessage());
+            });
+            MediaPlayer player = new MediaPlayer(media);
+            player.setOnError(() -> showAlert("Stream Error", player.getError() == null ? "Playback failed" : player.getError().getMessage()));
+            player.setOnReady(() -> statusLabel.setText("Stream ready: camera " + selected.getId()));
             MediaView view = new MediaView(player);
             view.setPreserveRatio(true);
             view.setFitWidth(900);

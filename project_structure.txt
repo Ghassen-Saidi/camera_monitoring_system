@@ -1,31 +1,8 @@
-(base) PS C:\Users\LENOVO\Desktop\2etude\semester2\java\mini_projet\camera_monitoring_system> tree /f
-Structure du dossier pour le volume Windows-SSD
-Le numéro de série du volume est 9CA7-F46C
-C:.
-│   activate-env.ps1
-│   build-and-run.ps1
-│   build.ps1
-│   compile.bat
-│   run.bat
-│
-├───lib
-│       mysql-connector-j-8.4.0.jar
-│
-├───out
-│   └───camera
-│           Camera.class
-│           camera.fxml
-│           CameraClientFX.class
-│           CameraController$1.class
-│           CameraController$2.class
-│           CameraController$3.class
-│           CameraController.class
-│           CameraService.class
-│
-└───src
-    └───camera
-            camera.fxml
-            Camera.java
-            CameraClientFX.java
-            CameraController.java
-            CameraService.java
+Current project structure
+
+- src/camera: JavaFX desktop client
+- server/src/server: Java HTTP API and camera state service
+- mobile: Kotlin Android client
+- lib: Jackson and other runtime dependencies
+- cams: runtime camera state files, created locally and ignored by Git
+- out and server/out: generated build output, ignored by Git
