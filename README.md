@@ -1,28 +1,27 @@
 # Camera Monitoring System
 
-A Java-based camera monitoring project with a JavaFX client and an HTTP server.
+A camera monitoring system with a JavaFX desktop client, a Kotlin Android client, and a lightweight Java HTTP backend.
 
-## Project layout
+## Components
 
-- `src/` — JavaFX client
-- `server/src/` — HTTP server
-- `lib/` — bundled Java dependencies
-- `cams/` — sample camera state files
-- `build.ps1` — build the client
-- `build-and-run.ps1` — build and launch the client
+- `server/src/server/` — HTTP API, camera service, request handling, and camera-control adapter
+- `src/camera/` — JavaFX desktop client
+- `mobile/` — native Kotlin Android client
+- `lib/` — Jackson and Java runtime dependencies
+- `cams/` — local runtime state; created by the server and ignored by Git
 
-## Requirements
+## Backend API
 
-- JDK 17 or newer
-- JavaFX SDK 25.0.1 (the scripts currently expect it at `C:\javafx-sdk-25.0.1\lib`)
+- `GET /api/cameras`
+- `GET /api/cameras/{id}`
+- `POST /api/cameras/{id}/record` with `{"action":"START"}` or `{"action":"STOP"}`
+- `POST /api/cameras/all/record` with `{"action":"START"}` or `{"action":"STOP"}`
 
-The generated `out/` directories are intentionally ignored by Git.
+The server validates actions, returns appropriate HTTP status codes, limits request sizes, applies socket timeouts, and shuts down its listener and worker pool cleanly.
 
-## Configure live cameras
+## Live camera configuration
 
-The server reads camera sources from environment variables. `CAMERA_COUNT` controls how many cameras are exposed; each camera uses `CAMERA_<id>_TYPE` and `CAMERA_<id>_URL`.
-
-Examples:
+Set the number of cameras and each source through environment variables:
 
 ```powershell
 $env:CAMERA_COUNT = "2"
@@ -32,8 +31,43 @@ $env:CAMERA_1_TYPE = "HTTP"
 $env:CAMERA_1_URL = "http://192.168.1.50/mjpeg"
 ```
 
-The client can open HTTP/HTTPS, HLS, and file streams through JavaFX MediaPlayer. RTSP IP cameras and local webcam devices should be restreamed through FFmpeg, MediaMTX, or another bridge into HLS/HTTP/WebRTC before opening them in the JavaFX viewer. The API still reports `RTSP` and `WEBCAM` sources so a future native capture backend can be added without changing the camera model.
+The current `FileCameraControl` is a development simulator. Replace it with an FFmpeg, RTSP, or webcam adapter to control real hardware. RTSP and local webcam sources should normally be restreamed to HLS, HTTP, or WebRTC for JavaFX playback.
 
-## API protection
+## Desktop client
 
-For local development, `CAMERA_API_KEY` may be left unset. For a shared network, set it in the server environment and send the same key from the JavaFX client with `-Dcamera.apiKey=...` or from Android with `-PcameraApiKey=...`. Use HTTPS before deploying beyond a trusted local network.
+Requirements:
+
+- JDK 17+
+- JavaFX SDK 25.0.1, configurable with `JAVAFX_PATH`
+
+The desktop client uses Jackson for JSON parsing, supports configurable API URLs with `-Dcamera.api=...`, and reports asynchronous media playback errors.
+
+## Android client
+
+Open `mobile/` in Android Studio. The default emulator API URL is:
+
+```text
+http://10.0.2.2:8081/api
+```
+
+For a physical device, configure the server's LAN address without editing source:
+
+```text
+./gradlew assembleDebug -PcameraApiUrl=http://192.168.1.10:8081/api
+```
+
+The mobile client lists cameras, sends control commands, and opens streams through an installed compatible player. It does not embed a native video player yet.
+
+## Security
+
+For local development, `CAMERA_API_KEY` may be unset. For a shared network, set it on the server and pass the same value to clients:
+
+- JavaFX: `-Dcamera.apiKey=...`
+- Android: `-PcameraApiKey=...`
+
+Use HTTPS before deploying outside a trusted local network. Debug Android builds allow local cleartext HTTP; release builds do not.
+
+## Branches
+
+- `main` — merged application baseline
+- `mobile-kotlin` — Kotlin Android client and reliability fixes
