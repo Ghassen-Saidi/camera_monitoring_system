@@ -182,8 +182,9 @@ public class CameraController {
 
         task.setOnFailed(e -> {
             Throwable ex = task.getException();
-            statusLabel.setText("Error: " + ex.getMessage());
-            showAlert("Error", "Failed to send global command: " + ex.getMessage());
+            statusLabel.setText("Bulk command incomplete: " + ex.getMessage());
+            showAlert("Bulk Command Incomplete", ex.getMessage());
+            refreshCameraList();
         });
 
         new Thread(task).start();
