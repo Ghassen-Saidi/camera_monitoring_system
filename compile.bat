@@ -1,7 +1,7 @@
 @echo off
 echo Compiling Camera Surveillance Client...
 
-set JAVAFX_PATH=C:\javafx-sdk-25.0.1\lib
+if "%JAVAFX_PATH%"=="" set JAVAFX_PATH=C:\javafx-sdk-25.0.1\lib
 
 if exist out rmdir /s /q out
 mkdir out

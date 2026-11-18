@@ -33,3 +33,7 @@ $env:CAMERA_1_URL = "http://192.168.1.50/mjpeg"
 ```
 
 The client can open HTTP/HTTPS, HLS, and file streams through JavaFX MediaPlayer. RTSP IP cameras and local webcam devices should be restreamed through FFmpeg, MediaMTX, or another bridge into HLS/HTTP/WebRTC before opening them in the JavaFX viewer. The API still reports `RTSP` and `WEBCAM` sources so a future native capture backend can be added without changing the camera model.
+
+## API protection
+
+For local development, `CAMERA_API_KEY` may be left unset. For a shared network, set it in the server environment and send the same key from the JavaFX client with `-Dcamera.apiKey=...` or from Android with `-PcameraApiKey=...`. Use HTTPS before deploying beyond a trusted local network.
