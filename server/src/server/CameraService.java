@@ -46,12 +46,15 @@ public class CameraService {
         }
     }
 
-    public void setStatus(int id, String action) {
+    public synchronized void setStatus(int id, String action) {
         if (id < 0 || id >= cameraCount()) throw new IllegalArgumentException("Invalid camera ID");
-        String status = action.equalsIgnoreCase("START") ? "RECORDING" : "STOPPED";
+        if (!"START".equalsIgnoreCase(action) && !"STOP".equalsIgnoreCase(action)) {
+            throw new IllegalArgumentException("Unsupported action: " + action);
+        }
+        String status = "START".equalsIgnoreCase(action) ? "RECORDING" : "STOPPED";
         try {
             Path file = Paths.get(CAMS_DIR, "cam" + id);
-            Files.writeString(file, status, StandardOpenOption.TRUNCATE_EXISTING);
+            Files.writeString(file, status, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
         } catch (IOException e) {
             throw new RuntimeException("Failed to write camera file", e);
         }

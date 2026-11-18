@@ -14,3 +14,6 @@ target/
 .env
 .env.*
 !.env.example
+
+# Runtime camera state is created by the server and must not be versioned
+cams/cam*
