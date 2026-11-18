@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="camera.CameraController">
+    <top>
+        <HBox spacing="10" alignment="CENTER_LEFT" style="-fx-padding: 10;">
+            <Button text="Refresh" onAction="#handleRefresh"/>
+            <Button text="Start Selected" onAction="#handleStartSelected"/>
+            <Button text="Stop Selected" onAction="#handleStopSelected"/>
+            <Button text="Start All" onAction="#handleStartAll"/>
+            <Button text="Stop All" onAction="#handleStopAll"/>
+        </HBox>
+    </top>
+    <center>
+        <TableView fx:id="tableView" VBox.vgrow="ALWAYS">
+            <columns>
+                <TableColumn fx:id="idColumn" text="Camera ID" prefWidth="100"/>
+                <TableColumn fx:id="statusColumn" text="Status" prefWidth="150"/>
+            </columns>
+        </TableView>
+    </center>
+    <bottom>
+        <HBox style="-fx-padding: 5;">
+            <Label fx:id="statusLabel" text="Ready"/>
+        </HBox>
+    </bottom>
+</BorderPane>
