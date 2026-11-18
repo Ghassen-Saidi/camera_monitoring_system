@@ -14,6 +14,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import org.json.JSONArray
+import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
@@ -65,7 +66,10 @@ class MainActivity : AppCompatActivity() {
         root.addView(statusText)
 
         cameraContainer = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        root.addView(ScrollView(this).apply { addView(cameraContainer) }, LinearLayout.LayoutParams(-1, 0, 1f))
+        root.addView(
+            ScrollView(this).apply { addView(cameraContainer) },
+            LinearLayout.LayoutParams(-1, 0, 1f)
+        )
         return root
     }
 
@@ -108,22 +112,52 @@ class MainActivity : AppCompatActivity() {
                 buttons.addView(button("Open Stream") { openStream(camera) })
             }
             card.addView(buttons)
-            cameraContainer.addView(card, LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, 0, 0, 16) })
+            cameraContainer.addView(
+                card,
+                LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, 0, 0, 16) }
+            )
         }
     }
 
     private fun sendAction(id: Int, action: String) = executor.execute {
         try {
             post("/cameras/$id/record", "{\"action\":\"$action\"}")
-            runOnUiThread { statusText.text = "Camera $id set to $action"; refreshCameras() }
-        } catch (error: Exception) { runOnUiThread { showError(error.message ?: "Action failed") } }
+            runOnUiThread {
+                statusText.text = "Camera $id set to $action"
+                refreshCameras()
+            }
+        } catch (error: Exception) {
+            runOnUiThread { showError(error.message ?: "Action failed") }
+        }
     }
 
     private fun sendAllAction(action: String) = executor.execute {
         try {
-            post("/cameras/all/record", "{\"action\":\"$action\"}")
-            runOnUiThread { statusText.text = "All cameras set to $action"; refreshCameras() }
-        } catch (error: Exception) { runOnUiThread { showError(error.message ?: "Action failed") } }
+            val payload = JSONObject(post("/cameras/all/record", "{\"action\":\"$action\"}"))
+            val succeeded = payload.optInt("succeeded", 0)
+            val failed = payload.optInt("failed", 0)
+            val message = payload.optString("message", "Bulk command completed")
+            val failedIds = mutableListOf<String>()
+            val results = payload.optJSONArray("results") ?: JSONArray()
+            for (index in 0 until results.length()) {
+                val result = results.optJSONObject(index) ?: continue
+                if (!result.optBoolean("success", false)) {
+                    failedIds.add(result.optString("cameraId", "?"))
+                }
+            }
+
+            runOnUiThread {
+                statusText.text = if (failed == 0) {
+                    message
+                } else {
+                    "$message. Failed camera IDs: ${failedIds.joinToString(", ")}"
+                }
+                if (failed > 0) Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+                refreshCameras()
+            }
+        } catch (error: Exception) {
+            runOnUiThread { showError(error.message ?: "Action failed") }
+        }
     }
 
     private fun openStream(camera: Camera) {
@@ -168,15 +202,18 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun post(path: String, body: String) {
-        request(path, "POST", body)
-    }
+    private fun post(path: String, body: String): String = request(path, "POST", body)
 
     private fun parseCameras(json: String): List<Camera> {
         val array = JSONArray(json)
         return List(array.length()) { index ->
             val item = array.getJSONObject(index)
-            Camera(item.optInt("cameraId", item.optInt("camerald")), item.optString("status"), item.optString("type", "HTTP"), item.optString("streamUrl"))
+            Camera(
+                item.optInt("cameraId", item.optInt("camerald")),
+                item.optString("status"),
+                item.optString("type", "HTTP"),
+                item.optString("streamUrl")
+            )
         }
     }
 
