@@ -7,6 +7,7 @@ if exist out rmdir /s /q out
 mkdir out
 
 javac --module-path "%JAVAFX_PATH%" --add-modules javafx.controls,javafx.fxml,javafx.media ^
+      -cp "lib/*" ^
       -d out ^
       src/camera/*.java
 
