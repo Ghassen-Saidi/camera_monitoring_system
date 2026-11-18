@@ -12,7 +12,7 @@ $javaFiles = Get-ChildItem -Path "$SRC_DIR/camera" -Filter "*.java" | ForEach-Ob
 
 Write-Host "Compiling Java files..." -ForegroundColor Cyan
 javac --module-path "$JAVAFX_PATH" `
-      --add-modules javafx.controls,javafx.fxml `
+      --add-modules javafx.controls,javafx.fxml,javafx.media `
       -d $OUT_DIR `
       $javaFiles
 

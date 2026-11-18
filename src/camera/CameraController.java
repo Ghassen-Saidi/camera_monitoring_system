@@ -7,6 +7,11 @@ import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.layout.StackPane;
+import javafx.scene.media.Media;
+import javafx.scene.media.MediaPlayer;
+import javafx.scene.media.MediaView;
+import javafx.stage.Stage;
 
 import java.util.List;
 
@@ -15,6 +20,8 @@ public class CameraController {
     @FXML private TableView<Camera> tableView;
     @FXML private TableColumn<Camera, Integer> idColumn;
     @FXML private TableColumn<Camera, String> statusColumn;
+    @FXML private TableColumn<Camera, String> typeColumn;
+    @FXML private TableColumn<Camera, String> streamUrlColumn;
     @FXML private Label statusLabel;
 
     private final ObservableList<Camera> cameraList = FXCollections.observableArrayList();
@@ -24,6 +31,8 @@ public class CameraController {
     public void initialize() {
         idColumn.setCellValueFactory(new PropertyValueFactory<>("id"));
         statusColumn.setCellValueFactory(new PropertyValueFactory<>("status"));
+        typeColumn.setCellValueFactory(new PropertyValueFactory<>("type"));
+        streamUrlColumn.setCellValueFactory(new PropertyValueFactory<>("streamUrl"));
         tableView.setItems(cameraList);
         refreshCameraList();
     }
@@ -51,6 +60,40 @@ public class CameraController {
     @FXML
     private void handleStopAll() {
         sendActionToAll("STOP");
+    }
+
+    @FXML
+    private void handleOpenStream() {
+        Camera selected = tableView.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            showAlert("No Selection", "Please select a camera first.");
+            return;
+        }
+        String url = selected.getStreamUrl();
+        if (url == null || url.isBlank()) {
+            showAlert("No Stream URL", "Configure CAMERA_" + selected.getId() + "_URL first.");
+            return;
+        }
+        if (selected.getType().equalsIgnoreCase("RTSP") || selected.getType().equalsIgnoreCase("WEBCAM")) {
+            showAlert("Stream Bridge Required", selected.getType() + " sources should be converted to HLS, HTTP, or another JavaFX-compatible stream first.\n\nSource: " + url);
+            return;
+        }
+        try {
+            MediaPlayer player = new MediaPlayer(new Media(url));
+            MediaView view = new MediaView(player);
+            view.setPreserveRatio(true);
+            view.setFitWidth(900);
+            view.setFitHeight(600);
+            StackPane root = new StackPane(view);
+            Stage stage = new Stage();
+            stage.setTitle("Camera " + selected.getId() + " - " + selected.getType());
+            stage.setScene(new javafx.scene.Scene(root, 900, 600));
+            stage.setOnShown(e -> player.play());
+            stage.setOnHidden(e -> player.dispose());
+            stage.show();
+        } catch (RuntimeException ex) {
+            showAlert("Stream Error", "Could not open stream: " + ex.getMessage());
+        }
     }
 
     private void refreshCameraList() {

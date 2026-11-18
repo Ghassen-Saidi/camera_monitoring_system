@@ -12,6 +12,7 @@
             <Button text="Stop Selected" onAction="#handleStopSelected"/>
             <Button text="Start All" onAction="#handleStartAll"/>
             <Button text="Stop All" onAction="#handleStopAll"/>
+            <Button text="Open Stream" onAction="#handleOpenStream"/>
         </HBox>
     </top>
     <center>
@@ -19,6 +20,8 @@
             <columns>
                 <TableColumn fx:id="idColumn" text="Camera ID" prefWidth="100"/>
                 <TableColumn fx:id="statusColumn" text="Status" prefWidth="150"/>
+                <TableColumn fx:id="typeColumn" text="Type" prefWidth="100"/>
+                <TableColumn fx:id="streamUrlColumn" text="Stream URL" prefWidth="400"/>
             </columns>
         </TableView>
     </center>

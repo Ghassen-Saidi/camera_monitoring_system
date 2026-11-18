@@ -6,7 +6,7 @@ set JAVAFX_PATH=C:\javafx-sdk-25.0.1\lib
 if exist out rmdir /s /q out
 mkdir out
 
-javac --module-path "%JAVAFX_PATH%" --add-modules javafx.controls,javafx.fxml ^
+javac --module-path "%JAVAFX_PATH%" --add-modules javafx.controls,javafx.fxml,javafx.media ^
       -d out ^
       src/camera/*.java
 

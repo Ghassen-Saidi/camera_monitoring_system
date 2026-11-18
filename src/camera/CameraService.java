@@ -96,15 +96,19 @@ public class CameraService {
         String[] pairs = objStr.split(",");
         int id = -1;
         String status = null;
+        String type = "HTTP";
+        String streamUrl = "";
         for (String pair : pairs) {
             String[] kv = pair.split(":", 2);
             if (kv.length == 2) {
                 String key = kv[0].trim().replace("\"", "");
                 String value = kv[1].trim().replace("\"", "");
-                if (key.equals("camerald")) id = Integer.parseInt(value);
+                if (key.equals("cameraId") || key.equals("camerald")) id = Integer.parseInt(value);
                 else if (key.equals("status")) status = value;
+                else if (key.equals("type")) type = value;
+                else if (key.equals("streamUrl")) streamUrl = value;
             }
         }
-        return (id != -1 && status != null) ? new Camera(id, status) : null;
+        return (id != -1 && status != null) ? new Camera(id, status, type, streamUrl) : null;
     }
 }

@@ -16,7 +16,7 @@ public class CameraService {
         // Ensure directory and files exist with default STOPPED state
         try {
             Files.createDirectories(Paths.get(CAMS_DIR));
-            for (int i = 0; i < 3; i++) {
+            for (int i = 0; i < cameraCount(); i++) {
                 Path file = Paths.get(CAMS_DIR, "cam" + i);
                 if (!Files.exists(file)) {
                     Files.writeString(file, "STOPPED");
@@ -29,25 +29,25 @@ public class CameraService {
 
     public List<Camera> getAllCameras() {
         List<Camera> list = new ArrayList<>();
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < cameraCount(); i++) {
             list.add(getCamera(i));
         }
         return list;
     }
 
     public Camera getCamera(int id) {
-        if (id < 0 || id > 2) return null;
+        if (id < 0 || id >= cameraCount()) return null;
         try {
             Path file = Paths.get(CAMS_DIR, "cam" + id);
             String content = Files.readString(file).trim();
-            return new Camera(id, content);
+            return new Camera(id, content, cameraType(id), streamUrl(id));
         } catch (IOException e) {
-            return new Camera(id, "UNKNOWN");
+            return new Camera(id, "UNKNOWN", cameraType(id), streamUrl(id));
         }
     }
 
     public void setStatus(int id, String action) {
-        if (id < 0 || id > 2) throw new IllegalArgumentException("Invalid camera ID");
+        if (id < 0 || id >= cameraCount()) throw new IllegalArgumentException("Invalid camera ID");
         String status = action.equalsIgnoreCase("START") ? "RECORDING" : "STOPPED";
         try {
             Path file = Paths.get(CAMS_DIR, "cam" + id);
@@ -58,8 +58,21 @@ public class CameraService {
     }
 
     public void setAllStatus(String action) {
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < cameraCount(); i++) {
             setStatus(i, action);
         }
+    }
+
+    private int cameraCount() {
+        try { return Math.max(1, Integer.parseInt(System.getenv().getOrDefault("CAMERA_COUNT", "3"))); }
+        catch (NumberFormatException ignored) { return 3; }
+    }
+
+    private String cameraType(int id) {
+        return System.getenv().getOrDefault("CAMERA_" + id + "_TYPE", "HTTP").toUpperCase();
+    }
+
+    private String streamUrl(int id) {
+        return System.getenv().getOrDefault("CAMERA_" + id + "_URL", "");
     }
 }
