@@ -1,0 +1,64 @@
+(base) PS C:\Users\LENOVO\Desktop\2etude\semester2\java\mini_projet\camera_monitoring_system> tree /f
+Structure du dossier pour le volume Windows-SSD
+Le numéro de série du volume est 9CA7-F46C
+C:.
+│   activate-env.ps1
+│   build-and-run.ps1
+│   build.ps1
+│   camera_monitoring_system_scripts.txt
+│   compile-server.bat
+│   compile.bat
+│   Nouveau Document texte.txt
+│   project_structure.txt
+│   run-server.bat
+│   run.bat
+│
+├───cams
+│       cam0
+│       cam1
+│       cam2
+│
+├───lib
+│       jackson-annotations-2.18.4.jar
+│       jackson-core-2.18.4.1.jar
+│       jackson-databind-2.18.4.jar
+│       mysql-connector-j-8.4.0.jar
+│
+├───out
+│   └───camera
+│           Camera.class
+│           camera.fxml
+│           CameraClientFX.class
+│           CameraController$1.class
+│           CameraController$2.class
+│           CameraController$3.class
+│           CameraController.class
+│           CameraService.class
+│
+├───server
+│   ├───out
+│   │   └───server
+│   │           Camera.class
+│   │           CameraController.class
+│   │           CameraService.class
+│   │           HttpServer.class
+│   │           Main.class
+│   │           RequestHandler.class
+│   │
+│   └───src
+│       └───server
+│               Camera.java
+│               CameraController.java
+│               CameraService.java
+│               HttpServer.java
+│               Main.java
+│               Nouveau Document texte.txt
+│               RequestHandler.java
+│
+└───src
+    └───camera
+            camera.fxml
+            Camera.java
+            CameraClientFX.java
+            CameraController.java
+            CameraService.java
